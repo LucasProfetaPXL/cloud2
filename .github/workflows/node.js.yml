@@ -1,0 +1,67 @@
+name: deploy
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Zorgt dat Terraform nooit om input vraagt
+      TF_INPUT: "false"
+      # Optioneel: meer logging (DEBUG/TRACE bij dieper onderzoek)
+      TF_LOG: "INFO"
+      # Zet regio ook expliciet (naast aws-actions)
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_REGION: us-east-1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS creds (temporary lab keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Sanity check
+        run: aws sts get-caller-identity
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        # with:
+        #   terraform_version: 1.9.6
+        
+      - name: Terraform init
+        run: |
+          terraform -chdir=infra init -input=false -upgrade
+
+      - name: Terraform plan
+        run: |
+          terraform -chdir=infra plan -input=false -no-color -out=tfplan | tee /tmp/plan.out
+          terraform -chdir=infra show -no-color tfplan > /tmp/plan.show
+  
+      - name: Upload plan logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-logs
+          path: |
+            /tmp/plan.out
+            /tmp/plan.show
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=infra apply -input=false -auto-approve -no-color tfplan | tee /tmp/apply.out
+
+      - name: Upload apply logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-apply-logs
+          path: /tmp/apply.out
