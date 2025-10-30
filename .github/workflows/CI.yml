@@ -1,0 +1,59 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  frontend-ci:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: install dependancies
+      working-directory: src
+      run: |
+       if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
+    - name: build
+      run: npm build
+    - name: test
+      working-directory: src
+      run: npm test -- --coverage --verbose
+    
+    - name: install reporter
+      run: npm i -D jest-junit
+    - name: testen
+      working-directory: src
+      env:
+        CI: true
+        JEST_JUNIT_OUTPUT_DIR: reports
+        JEST_JUNIT_OUTPUT_NAME: junit.xml
+      run: |
+        mkdir -p reports
+        npx jest --coverage --ci --reporters=default --reporters=jest-junit
+    - name: test reporter
+      uses: dorny/test-reporter@v2
+      with:
+        name: JEST Tests
+        path: src/reports/*.xml
+        reporter: jest-junit
+    
+    
+            
+
+            
