@@ -84,7 +84,7 @@ resource "aws_instance" "frontend" {
   vpc_security_group_ids      = [aws_security_group.sg.id]
   associate_public_ip_address = true
   key_name                    = var.key_name != "" ? var.key_name : null
-  user_data                   = templatefile("${path.module}/script_frontend.sh", { backend_ip = aws_instance.backend.private_ip })
+  user_data                   = templatefile("${path.module}/script_frontend.sh", { backend_ip = aws_instance.backend.public_ip })
   tags = { Name = "${var.name_prefix}-frontend" }
 }
 
