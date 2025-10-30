@@ -5,33 +5,15 @@ terraform {
 
 provider "aws" {}
 
-data "aws_vpc" "def" { default = true }
-
-data "aws_subnets" "subs" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.def.id]
-  }
+# Hardcoded Ubuntu AMI ID for us-east-1
+variable "ami_id" {
+  type    = string
+  default = "ami-0e2c8caa4b6378d8c"  # Ubuntu 22.04 LTS in us-east-1
 }
-
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"]
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-*-amd64-server-*"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-locals { subnet_id = data.aws_subnets.subs.ids[0] }
 
 resource "aws_security_group" "sg" {
   name_prefix = "${var.name_prefix}-sg-"
-  vpc_id      = data.aws_vpc.def.id
+  # Don't specify vpc_id - uses default VPC automatically
 
   ingress {
     from_port   = 80
@@ -65,9 +47,9 @@ resource "aws_security_group" "sg" {
 }
 
 resource "aws_instance" "backend" {
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = var.ami_id
   instance_type               = var.instance_type
-  subnet_id                   = local.subnet_id
+  # Don't specify subnet_id - uses default subnet automatically
   vpc_security_group_ids      = [aws_security_group.sg.id]
   associate_public_ip_address = true
   key_name                    = var.key_name != "" ? var.key_name : null
@@ -77,14 +59,13 @@ resource "aws_instance" "backend" {
 }
 
 resource "aws_instance" "frontend" {
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = var.ami_id
   instance_type               = var.instance_type
-  subnet_id                   = local.subnet_id
+  # Don't specify subnet_id - uses default subnet automatically
   vpc_security_group_ids      = [aws_security_group.sg.id]
   associate_public_ip_address = true
   key_name                    = var.key_name != "" ? var.key_name : null
   
-  # Fixed: Use script_frontend.sh (not frontend-init.sh)
   user_data = templatefile("${path.module}/script_frontend.sh", {
     backend_ip = aws_instance.backend.public_ip
   })
