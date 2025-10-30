@@ -15,7 +15,7 @@ usermod -aG docker ubuntu
 # Clone and run backend
 echo "Cloning repository..."
 rm -rf /opt/app
-git clone --depth=1 https://github.com/3TIN-CloudExpert/todoapp-clouddeploy-LucasProfetaPXL.git /opt/app
+git clone --depth=1 https://github.com/LucasProfetaPXL/cloud2 /opt/app
 
 echo "Building and running backend container..."
 cd /opt/app/backend

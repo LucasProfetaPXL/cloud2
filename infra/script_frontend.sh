@@ -15,7 +15,7 @@ usermod -aG docker ubuntu
 # Clone repository
 echo "Cloning repository..."
 rm -rf /opt/app
-git clone --depth=1 https://github.com/3TIN-CloudExpert/todoapp-clouddeploy-LucasProfetaPXL.git /opt/app
+git clone --depth=1 https://github.com/LucasProfetaPXL/cloud2 /opt/app
 
 # Build and run frontend with backend URL
 echo "Building frontend with API URL: http://${backend_ip}:8080"
