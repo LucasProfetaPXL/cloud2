@@ -3,7 +3,7 @@ terraform {
   required_version = ">=1.4.0"
 }
 
-provider "aws" {} # gebruikt AWS_REGION uit je workflow/env
+provider "aws" {}
 
 data "aws_vpc" "def" { default = true }
 
@@ -64,8 +64,6 @@ resource "aws_security_group" "sg" {
   tags = { Name = "${var.name_prefix}-sg" }
 }
 
-
-
 resource "aws_instance" "backend" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
@@ -74,6 +72,7 @@ resource "aws_instance" "backend" {
   associate_public_ip_address = true
   key_name                    = var.key_name != "" ? var.key_name : null
   user_data                   = file("${path.module}/script_backend.sh")
+  
   tags = { Name = "${var.name_prefix}-backend" }
 }
 
@@ -84,7 +83,12 @@ resource "aws_instance" "frontend" {
   vpc_security_group_ids      = [aws_security_group.sg.id]
   associate_public_ip_address = true
   key_name                    = var.key_name != "" ? var.key_name : null
-  user_data                   = templatefile("${path.module}/script_frontend.sh", { backend_ip = aws_instance.backend.public_ip })
+  
+  # Fixed: Use script_frontend.sh (not frontend-init.sh)
+  user_data = templatefile("${path.module}/script_frontend.sh", {
+    backend_ip = aws_instance.backend.public_ip
+  })
+  
   tags = { Name = "${var.name_prefix}-frontend" }
 }
 
@@ -92,13 +96,21 @@ variable "instance_type" {
   type    = string
   default = "t3.micro"
 }
+
 variable "key_name" {
   type    = string
   default = ""
 }
+
 variable "name_prefix" {
   type    = string
   default = "todoapp"
 }
 
-output "frontend_public_ip" { value = aws_instance.frontend.public_ip }
+output "backend_public_ip" { 
+  value = aws_instance.backend.public_ip 
+}
+
+output "frontend_public_ip" { 
+  value = aws_instance.frontend.public_ip 
+}

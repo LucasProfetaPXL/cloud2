@@ -4,19 +4,14 @@ export DEBIAN_FRONTEND=noninteractive
 
 exec > >(tee -a /var/log/user-data.log)
 exec 2>&1
-echo "=== Starting frontend deployment at $(date) ==="
-
-BACKEND_URL="http://${backend_ip}:8080"
-echo "Backend URL: $BACKEND_URL"
+echo "=== Starting backend deployment at $(date) ==="
 
 # Install Docker and Git
-echo "Installing Docker and Git..."
 apt-get update -y
 apt-get install -y docker.io git
 systemctl enable --now docker
 usermod -aG docker ubuntu
 
-# Wait for Docker to be ready
 sleep 5
 
 # Clone repository
@@ -24,37 +19,29 @@ echo "Cloning repository..."
 rm -rf /opt/app
 git clone --depth=1 https://github.com/LucasProfetaPXL/cloud2 /opt/app
 
-# Build frontend with correct backend URL
-echo "Building frontend with API URL: $BACKEND_URL"
-cd /opt/app/frontend
-
-# Build the Docker image with the backend URL
-docker build \
-  --build-arg APIURL=$BACKEND_URL \
-  -t frontend:latest \
-  .
-
-# Run the frontend container
-echo "Running frontend container..."
+# Start MongoDB container
+echo "Starting MongoDB..."
 docker run -d \
-  --name frontend \
+  --name mongodb \
   --restart=unless-stopped \
-  -p 80:80 \
-  frontend:latest
+  -p 27017:27017 \
+  mongo:5
 
-# Wait for container to start
 sleep 10
 
-# Check if frontend is running
-if docker ps | grep -q frontend; then
-  echo "✓ Frontend container is running"
-  docker logs frontend
-else
-  echo "✗ Frontend container failed to start"
-  docker logs frontend
-  exit 1
-fi
+# Build and run backend
+cd /opt/app/backend
+docker build -t backend:latest .
 
-echo "Frontend is running on port 80"
-echo "Frontend configured to connect to: $BACKEND_URL"
-echo "=== Frontend deployment completed at $(date) ==="
+docker run -d \
+  --name backend \
+  --restart=unless-stopped \
+  --link mongodb:mongodb \
+  -p 8080:3000 \
+  -e PORT=3000 \
+  -e DBURL="mongodb://mongodb:27017/todoapp" \
+  backend:latest
+
+echo "Backend running on port 8080"
+echo "MongoDB running on port 27017"
+echo "=== Backend deployment completed at $(date) ==="
