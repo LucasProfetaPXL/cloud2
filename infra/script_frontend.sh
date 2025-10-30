@@ -2,52 +2,26 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-# 1. Install dependencies
+exec > >(tee -a /var/log/user-data.log)
+exec 2>&1
+echo "=== Starting frontend deployment at $(date) ==="
+
+# Install Docker
 apt-get update -y
-apt-get install -y git nginx curl ca-certificates gnupg
+apt-get install -y docker.io git
+systemctl enable --now docker
+usermod -aG docker ubuntu
 
-# 2. (optioneel) Node installeren voor frontend build
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
-apt-get update -y && apt-get install -y nodejs
-
-# 3. Haal code & build
+# Clone repository
+echo "Cloning repository..."
 rm -rf /opt/app
 git clone --depth=1 https://github.com/3TIN-CloudExpert/todoapp-clouddeploy-LucasProfetaPXL.git /opt/app
+
+# Build and run frontend with backend URL
+echo "Building frontend with API URL: http://${backend_ip}:8080"
 cd /opt/app/frontend
-if [ -f package-lock.json ]; then npm ci; else npm install; fi
-npm run build
+docker build --build-arg APIURL=http://${backend_ip}:8080 -t frontend:latest .
+docker run -d --name frontend --restart=unless-stopped -p 80:80 frontend:latest
 
-# 4. Kopieer build naar Nginx root
-DEST=/var/www/html
-SRC=""
-[ -d dist ] && SRC=dist
-[ -z "$SRC" ] && [ -d build ] && SRC=build
-[ -z "$SRC" ] && { echo "Geen build map gevonden (dist/ of build/)"; exit 1; }
-
-rm -rf "$DEST"/*
-cp -r "$SRC"/* "$DEST"/
-
-# 5. Basis nginx config
-cat >/etc/nginx/sites-available/default <<'EOF'
-server {
-  listen 80 default_server;
-  listen [::]:80 default_server;
-  server_name _;
-  root /var/www/html;
-  index index.html;
-
-  location / {
-    try_files $uri /index.html;
-  }
-
-  location /healthz {
-    return 200 "ok\n";
-    add_header Content-Type text/plain;
-  }
-}
-EOF
-
-nginx -t
-systemctl enable --now nginx
+echo "Frontend is running on port 80"
+echo "=== Frontend deployment completed at $(date) ==="

@@ -1,27 +1,26 @@
 #!/bin/bash
-# ===== EC2 User Data Script =====
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
-# Loggen naar een bestand (handig voor debugging)
-exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+exec > >(tee -a /var/log/user-data.log)
+exec 2>&1
+echo "=== Starting backend deployment at $(date) ==="
 
-# Update packages
-sudo apt update -y
-sudo apt upgrade -y
+# Install Docker
+apt-get update -y
+apt-get install -y docker.io git
+systemctl enable --now docker
+usermod -aG docker ubuntu
 
-# Install Git & Docker
-sudo apt install -y git docker.io
+# Clone and run backend
+echo "Cloning repository..."
+rm -rf /opt/app
+git clone --depth=1 https://github.com/3TIN-CloudExpert/todoapp-clouddeploy-LucasProfetaPXL.git /opt/app
 
-# Start Docker service
-sudo systemctl enable docker
-sudo systemctl start docker
+echo "Building and running backend container..."
+cd /opt/app/backend
+docker build -t backend:latest .
+docker run -d --name backend --restart=unless-stopped -p 8080:8080 backend:latest
 
-# Clone de repo
-cd /home/ubuntu
-git clone https://github.com/3TIN-CloudExpert/todoapp-clouddeploy-LucasProfetaPXL.git
-
-# Ga naar de backend folder
-cd todoapp-clouddeploy-LucasProfetaPXL/backend
-
-# Bouw en run de Dockerfile
-sudo docker build -t todoapp-backend .
-sudo docker run -d -p 80:80 todoapp-backend
+echo "Backend is running on port 8080"
+echo "=== Backend deployment completed at $(date) ==="
