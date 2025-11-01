@@ -1,34 +1,24 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
-echo "=== Starting frontend deployment ==="
+exec > >(tee -a /var/log/user-data.log)
+exec 2>&1
+echo "=== Starting frontend deployment at $(date) ==="
 
-# Install Docker (if not in AMI)
-apt-get update
-apt-get install -y docker.io git
-systemctl start docker
-systemctl enable docker
+# Install Docker
+apt-get update -y
+apt-get install -y docker.io
+systemctl enable --now docker
+usermod -aG docker ubuntu
 
-# Clone and build
-cd /opt
-git clone https://github.com/your-repo/app.git
-cd app
+# Build frontend with PUBLIC backend URL
+BACKEND_URL="http://${backend_ip}:8080"
+docker pull r12301302/cloud2_frontend:latest
+docker run -d --name frontend --restart=unless-stopped -p 80:80 \
+  -e API_URL="$BACKEND_URL" \
+  12301302/cloud2_frontend:latest
 
-# Use Docker BuildKit for faster builds
-export DOCKER_BUILDKIT=1
-
-# Build with build arg
-docker build \
-  --build-arg APIURL=http://${backend_ip}:8080 \
-  -t frontend:latest \
-  -f Dockerfile.frontend \
-  .
-
-# Run container
-docker run -d \
-  --name frontend \
-  --restart unless-stopped \
-  -p 80:80 \
-  frontend:latest
-
-echo "=== Frontend deployment complete ==="
+echo "Frontend is running on port 80"
+echo "Frontend configured to connect to: $BACKEND_URL"
+echo "=== Frontend deployment completed at $(date) ==="
