@@ -26,7 +26,7 @@ jobs:
       with: 
         images: ${{env.FRONTEND_IMAGE}}
     - name: dockerlogin         
-      uses: docker/login-action@v5
+      uses: docker/login-action@v3
       with:
         username: ${{secrets.DOCKER_USERNAME}}
         password: ${{secrets.DOCKER_PASSWORD}}
@@ -50,7 +50,7 @@ jobs:
         with: 
           images: ${{env.BACKEND_IMAGE}}
       - name: dockerlogin         
-        uses: docker/login-action@v5
+        uses: docker/login-action@v3
         with:
           username: ${{secrets.DOCKER_USERNAME}}
           password: ${{secrets.DOCKER_PASSWORD}}
