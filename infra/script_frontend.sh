@@ -14,7 +14,7 @@ usermod -aG docker ubuntu
 
 # Build frontend with PUBLIC backend URL
 BACKEND_URL="http://${backend_ip}:8080"
-docker pull r12301302/cloud2_frontend:latest
+docker pull 12301302/cloud2_frontend:latest
 docker run -d --name frontend --restart=unless-stopped -p 80:80 \
   -e API_URL="$BACKEND_URL" \
   12301302/cloud2_frontend:latest
