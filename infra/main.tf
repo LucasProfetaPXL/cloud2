@@ -46,6 +46,16 @@ resource "aws_security_group" "sg" {
   tags = { Name = "${var.name_prefix}-sg" }
 }
 
+resource "aws_instance" "database" {
+  ami = var.ami_id
+  instance_type = var.instance_type
+  vpc_security_group_ids = [aws_security_group.sg.id]
+  associate_public_ip_address = true
+  key_name = var.key_name != "" ? var.key_name : null
+  user_data = file("${path.module}/script_database.sh")
+  tags = { Name = "${var.name_prefix}-database" }
+}
+
 resource "aws_instance" "backend" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
